@@ -1,10 +1,10 @@
 [package]
-name = "pencil"
+name = "pencil_case"
 version = "0.1.0-dev"
 edition = "2021"
 authors = ["iiYese iiyese@outlook.com"]
-repository = "https://github.com/iiYese/pencil"
-description = "A simple but effective tool for writing (GUI in bevy)"
+repository = "https://github.com/iiYese/pencil_case"
+description = "A simple but effective library for writing GUI in bevy"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 

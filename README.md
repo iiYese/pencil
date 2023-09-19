@@ -1,5 +1,5 @@
-# Pencil
-A simple but effective tool for writing (GUI in bevy)
+# Pencil case
+A simple but effective library for writing GUI in bevy
 
 ## ⚠⚠⚠ UNDER CONSTRUCTION ⚠⚠⚠
 - [x] Camera space UI
