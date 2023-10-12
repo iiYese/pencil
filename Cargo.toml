@@ -1,6 +1,6 @@
 [package]
 name = "pencil_case"
-version = "0.1.0-dev"
+version = "0.1.0"
 edition = "2021"
 authors = ["iiYese iiyese@outlook.com"]
 repository = "https://github.com/iiYese/pencil_case"
@@ -11,3 +11,37 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+aery = "0.4"
+moshimoshi = "0.2"
+bevy_vector_shapes = "0.5.2"
+pencil_case_macros = { path = "macros", version = "0.1.0-dev" }
+
+[dependencies.bevy]
+version = "0.11"
+default-features = false
+features = [
+    "animation",
+    "bevy_asset",
+    "bevy_audio",
+    "bevy_gilrs",
+    "bevy_scene",
+    "bevy_winit",
+    "bevy_core_pipeline",
+    "bevy_pbr",
+    "bevy_gltf",
+    "bevy_render",
+    "bevy_sprite",
+    "bevy_text",
+    "multi-threaded",
+    "png",
+    "hdr",
+    "ktx2",
+    "zstd",
+    "vorbis",
+    "x11",
+    "bevy_gizmos",
+    "android_shared_stdcxx",
+    "tonemapping_luts",
+    "default_font",
+    "webgl2",
+]
