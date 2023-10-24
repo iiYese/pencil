@@ -1,18 +1,15 @@
-use crate::Val;
+use crate::Units;
 use bevy::prelude::*;
 use pencil_case_macros::*;
 
 #[derive(Clone, Component, Hereditary)]
-pub enum Rounding {
-    Exact(f32),
-    (f32),
-}
+pub struct Rounding(pub Units);
 
 #[derive(Component)]
-struct Main(Color);
+pub struct Main(Color);
 
 #[derive(Component)]
-struct Alt(Color);
+pub struct Alt(Color);
 
 #[derive(Component)]
-struct Accent(Color);
+pub struct Accent(Color);

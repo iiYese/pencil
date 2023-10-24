@@ -2,11 +2,11 @@
 A simple but effective library for writing GUI in bevy
 
 ## ⚠⚠⚠ UNDER CONSTRUCTION ⚠⚠⚠
-- [x] Camera space UI
 - [x] Tiling layout algorithm
-- [x] Buttons
-- [x] Sliders
-- [x] Scroll Areas
+- [ ] Camera space UI
+- [ ] Buttons
+- [ ] Sliders
+- [ ] Scroll Areas
 - [ ] World space UI
 - [ ] Text
 - [ ] Text input

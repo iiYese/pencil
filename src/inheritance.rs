@@ -4,15 +4,18 @@ use bevy::prelude::*;
 use std::marker::PhantomData;
 
 #[derive(Component)]
-pub struct InheritAll;
+#[component(storage = "SparseSet")]
+pub struct InheritAny;
 
 /// Component that can be inherited  by entities in a hierarchy
 pub trait Hereditary: Component + Clone {}
 
 #[derive(Component)]
+#[component(storage = "SparseSet")]
 pub struct Inherit<T: Hereditary>(PhantomData<T>);
 
 #[derive(Component)]
+#[component(storage = "SparseSet")]
 pub struct Reject<T: Hereditary>(PhantomData<T>);
 
 impl<T: Hereditary> Reject<T> {
@@ -22,6 +25,7 @@ impl<T: Hereditary> Reject<T> {
 }
 
 #[derive(Component)]
+#[component(storage = "SparseSet")]
 pub struct Hidden<T: Hereditary>(PhantomData<T>);
 
 impl<T: Hereditary> Hidden<T> {
@@ -30,7 +34,7 @@ impl<T: Hereditary> Hidden<T> {
     }
 }
 
-pub fn propogate<C: Hereditary, R: Relation>(
+pub fn inherit<R: Relation, C: Hereditary>(
     mut commands: Commands,
     roots: Query<Entity, Root<R>>,
     tree: Query<(Entity, Relations<R>)>,
@@ -38,7 +42,7 @@ pub fn propogate<C: Hereditary, R: Relation>(
     receivers: Query<
         Entity,
         (
-            Or<(With<Inherit<C>>, With<InheritAll>)>,
+            Or<(With<Inherit<C>>, With<InheritAny>)>,
             (Without<Reject<C>>, Without<Hidden<C>>),
         ),
     >,
