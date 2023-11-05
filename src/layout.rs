@@ -7,8 +7,8 @@ use pencil_case_macros::*;
 #[derive(Component, Clone, Copy)]
 pub struct Rect {
     /// Top left
-    pos: Vec2,
-    len: Vec2,
+    pub pos: Vec2,
+    pub len: Vec2,
 }
 
 // What portion of the canvas is being viewed
@@ -38,15 +38,15 @@ pub struct Spacing(pub f32);
 /// Space inner contents of a [`Rect`] with a grain will not occupy.
 #[derive(Component, Hereditary, Clone, Copy, Default)]
 pub struct Inset {
-    with: [Units; 2],
-    against: [Units; 2],
+    pub with: [Units; 2],
+    pub against: [Units; 2],
 }
 
 impl Inset {
-    pub fn symmetric(amount: Units) -> Self {
+    pub fn symmetric(amount: f32) -> Self {
         Inset {
-            with: [amount, amount],
-            against: [amount, amount],
+            with: [Units::Exact(amount), Units::Exact(amount)],
+            against: [Units::Exact(amount), Units::Exact(amount)],
         }
     }
 
@@ -65,6 +65,7 @@ impl Inset {
     }
 }
 
+// TODO: Filter in view
 #[rustfmt::skip]
 pub fn fit_rects(
     mut rects: Query<(&mut Rect, Option<&Fit>)>,
@@ -116,10 +117,7 @@ pub fn fit_rects(
             .map(|r| (r / against_denom) * against_len)
             .sum::<f32>();
 
-        let against_start = match inset.against[0] {
-            Units::Exact(val) => val,
-            Units::Ratio(val) => (val / against_denom) * against_len,
-        };
+        let against_start = inset.against[0].calculate(against_denom, against_len);
 
         // With calculations
         divisible_with -= inset
@@ -144,11 +142,9 @@ pub fn fit_rects(
             }
         });
 
-        let mut with_start = match inset.with[0] {
-            Units::Exact(val) => val,
-            Units::Ratio(val) => (val / with_denom) * divisible_with,
-        };
+        let mut with_start = inset.with[0].calculate(with_denom, divisible_with);
 
+        // Fit rects
         let rect_ctor = match grain {
             Grain::Horizontal => |(pos_x, len_x): (f32, f32), (pos_y, len_y): (f32, f32)| Rect {
                 pos: Vec2 { x: pos_x, y: pos_y },
@@ -161,11 +157,7 @@ pub fn fit_rects(
         };
 
         edges.join::<Ui>(&mut rects).for_each(|(mut rect, fit)| if let Some(Fit(units)) = fit {
-            let with_len = match units {
-                Units::Exact(val) => *val,
-                Units::Ratio(val) => (val / with_denom) * divisible_with,
-            };
-
+            let with_len = units.calculate(with_denom, divisible_with);
             *rect = rect_ctor((with_start, with_len), (against_start, against_len));
             with_start += spacing + with_len;
         });

@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 
 #[derive(Component)]
 #[component(storage = "SparseSet")]
-pub struct InheritAny;
+pub struct InheritAll;
 
 /// Component that can be inherited  by entities in a hierarchy
 pub trait Hereditary: Component + Clone {}
@@ -42,7 +42,7 @@ pub fn inherit<R: Relation, C: Hereditary>(
     receivers: Query<
         Entity,
         (
-            Or<(With<Inherit<C>>, With<InheritAny>)>,
+            Or<(With<Inherit<C>>, With<InheritAll>)>,
             (Without<Reject<C>>, Without<Hidden<C>>),
         ),
     >,

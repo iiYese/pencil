@@ -13,7 +13,21 @@ use bevy::prelude::*;
 /// Trait to construct a bundle without asset API
 pub trait Placeholder: Component {
     type Out: Bundle;
-    fn build(world: &mut World) -> Self::Out;
+    fn build(self, world: &mut World) -> Self::Out;
+}
+
+pub fn build_placeholders<P: Placeholder>(mut cmds: Commands, query: Query<Entity, With<P>>) {
+    for e in query.iter() {
+        cmds.add(move |world: &mut World| {
+            let built = world
+                .entity_mut(e)
+                .take::<P>()
+                .expect("Placeholder component should exist on entity.")
+                .build(world);
+
+            world.entity_mut(e).insert(built);
+        });
+    }
 }
 
 #[derive(Relation)]
@@ -39,6 +53,13 @@ impl Units {
             _ => None,
         }
     }
+
+    pub fn calculate(&self, denom: f32, available: f32) -> f32 {
+        match *self {
+            Self::Exact(val) => val,
+            Self::Ratio(val) => (val / denom) * available,
+        }
+    }
 }
 
 impl Default for Units {
@@ -49,6 +70,7 @@ impl Default for Units {
 
 #[derive(SystemSet, Clone, Debug, Copy, Eq, PartialEq, Hash)]
 pub enum UiSet {
+    Placeholders,
     Inherit,
     Layout,
     Input,
@@ -61,12 +83,14 @@ impl Plugin for PencilCase {
     fn build(&self, app: &mut App) {
         use crate::{
             inheritance::inherit,
-            layout::{Fit, Inset, Spacing},
+            layout::{
+                fit_rects, {Fit, Inset, Spacing},
+            },
             style::Rounding,
             UiSet::*,
         };
 
-        app.configure_sets(PreUpdate, (Inherit, Layout, Input).chain())
+        app.configure_sets(PreUpdate, (Placeholders, Inherit, Layout, Input).chain())
             .configure_set(Update, Draw)
             .add_systems(
                 PreUpdate,
@@ -78,13 +102,14 @@ impl Plugin for PencilCase {
                 )
                     .in_set(Inherit),
             )
-            .add_systems(PreUpdate, apply_deferred.after(Inherit))
-            .add_systems(PreUpdate, apply_deferred.after(Input));
+            .add_systems(Update, fit_rects.in_set(Layout))
+            .add_systems(PreUpdate, apply_deferred.after(Placeholders))
+            .add_systems(PreUpdate, apply_deferred.after(Inherit));
     }
 }
 
 pub mod prelude {
-    pub use crate::inheritance::{inherit, Hidden, Inherit, InheritAny, Reject};
+    pub use crate::inheritance::{inherit, Hidden, Inherit, InheritAll, Reject};
     pub use aery::prelude::*;
     pub use pencil_case_macros::*;
 }
