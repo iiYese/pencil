@@ -3,8 +3,7 @@
 
 pub mod inheritance;
 pub mod input;
-pub mod layout;
-pub mod style;
+pub mod tile;
 pub mod widgets;
 
 use aery::prelude::*;
@@ -16,6 +15,7 @@ pub trait Placeholder: Component {
     fn build(self, world: &mut World) -> Self::Out;
 }
 
+/// TODO: Replace with hooks
 pub fn build_placeholders<P: Placeholder>(mut cmds: Commands, query: Query<Entity, With<P>>) {
     for e in query.iter() {
         cmds.add(move |world: &mut World| {
@@ -73,7 +73,9 @@ pub enum UiSet {
     Placeholders,
     Inherit,
     Layout,
-    Input,
+    CursorDrivers,
+    VirtualInput,
+    CaptureBubble,
     Draw,
 }
 
@@ -83,28 +85,41 @@ impl Plugin for PencilCase {
     fn build(&self, app: &mut App) {
         use crate::{
             inheritance::inherit,
-            layout::{
-                fit_rects, {Fit, Inset, Spacing},
+            tile::{
+                layout::{
+                    fit_tiles, {Fit, Inset, Spacing},
+                },
+                style::Rounding,
             },
-            style::Rounding,
             UiSet::*,
         };
 
-        app.configure_sets(PreUpdate, (Placeholders, Inherit, Layout, Input).chain())
-            .configure_set(Update, Draw)
-            .add_systems(
-                PreUpdate,
-                (
-                    inherit::<Ui, Fit>,
-                    inherit::<Ui, Inset>,
-                    inherit::<Ui, Spacing>,
-                    inherit::<Ui, Rounding>,
-                )
-                    .in_set(Inherit),
+        app.configure_sets(
+            PreUpdate,
+            (
+                Placeholders,
+                Inherit,
+                Layout,
+                CursorDrivers,
+                VirtualInput,
+                CaptureBubble,
             )
-            .add_systems(Update, fit_rects.in_set(Layout))
-            .add_systems(PreUpdate, apply_deferred.after(Placeholders))
-            .add_systems(PreUpdate, apply_deferred.after(Inherit));
+                .chain(),
+        )
+        .configure_sets(Update, Draw)
+        .add_systems(
+            PreUpdate,
+            (
+                inherit::<Ui, Fit>,
+                inherit::<Ui, Inset>,
+                inherit::<Ui, Spacing>,
+                inherit::<Ui, Rounding>,
+            )
+                .in_set(Inherit),
+        )
+        .add_systems(Update, fit_tiles.in_set(Layout))
+        .add_systems(PreUpdate, apply_deferred.after(Placeholders))
+        .add_systems(PreUpdate, apply_deferred.after(Inherit));
     }
 }
 
@@ -113,5 +128,3 @@ pub mod prelude {
     pub use aery::prelude::*;
     pub use pencil_case_macros::*;
 }
-
-// TODO

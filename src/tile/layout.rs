@@ -1,19 +1,12 @@
-use crate::{Ui, Units};
+use crate::{tile::Tile, Ui, Units};
 use aery::prelude::*;
 use bevy::prelude::*;
 use bevy_vector_shapes::painter::Canvas;
 use pencil_case_macros::*;
 
-#[derive(Component, Clone, Copy)]
-pub struct Rect {
-    /// Top left
-    pub pos: Vec2,
-    pub len: Vec2,
-}
-
 // What portion of the canvas is being viewed
 #[derive(Component, Clone, Deref, DerefMut)]
-pub struct View(pub Rect);
+pub struct View(pub Tile);
 
 /// What direction to layout children.
 #[derive(Component, Clone, Copy)]
@@ -35,7 +28,7 @@ pub struct Fit(pub Units);
 #[derive(Component, Hereditary, Clone, Copy, Deref, DerefMut, Default)]
 pub struct Spacing(pub f32);
 
-/// Space inner contents of a [`Rect`] with a grain will not occupy.
+/// Space inner contents of a [`Tile`] with a grain will not occupy.
 #[derive(Component, Hereditary, Clone, Copy, Default)]
 pub struct Inset {
     pub with: [Units; 2],
@@ -67,8 +60,8 @@ impl Inset {
 
 // TODO: Filter in view
 #[rustfmt::skip]
-pub fn fit_rects(
-    mut rects: Query<(&mut Rect, Option<&Fit>)>,
+pub fn fit_tiles(
+    mut rects: Query<(&mut Tile, Option<&Fit>)>,
     canvases: Query<(), With<Canvas>>,
     roots: Query<Entity, Root<Ui>>,
     tree: Query<
@@ -146,11 +139,11 @@ pub fn fit_rects(
 
         // Fit rects
         let rect_ctor = match grain {
-            Grain::Horizontal => |(pos_x, len_x): (f32, f32), (pos_y, len_y): (f32, f32)| Rect {
+            Grain::Horizontal => |(pos_x, len_x): (f32, f32), (pos_y, len_y): (f32, f32)| Tile {
                 pos: Vec2 { x: pos_x, y: pos_y },
                 len: Vec2 { x: len_x, y: len_y },
             },
-            Grain::Vertical => |(pos_y, len_y): (f32, f32), (pos_x, len_x): (f32, f32)| Rect {
+            Grain::Vertical => |(pos_y, len_y): (f32, f32), (pos_x, len_x): (f32, f32)| Tile {
                 pos: Vec2 { x: pos_x, y: pos_y },
                 len: Vec2 { x: len_x, y: len_y },
             }

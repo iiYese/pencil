@@ -3,7 +3,7 @@ use quote::quote;
 use syn::{parse_macro_input, parse_quote, DeriveInput};
 
 #[proc_macro_derive(Hereditary)]
-pub fn relation_derive(input: TokenStream) -> TokenStream {
+pub fn hereditary_derive(input: TokenStream) -> TokenStream {
     let mut ast = parse_macro_input!(input as DeriveInput);
     ast.generics
         .make_where_clause()
