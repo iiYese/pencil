@@ -9,6 +9,7 @@ pub struct Tile {
     pub pos: Vec2,
     pub len: Vec2,
 }
+
 impl Tile {
     pub fn contains(&self, point: Vec2) -> bool {
         todo!()

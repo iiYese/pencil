@@ -5,14 +5,12 @@ use bevy::{
     prelude::*,
     utils::{HashMap, HashSet},
 };
-use std::collections::VecDeque;
+use std::{collections::VecDeque, marker::PhantomData};
 
-mod button;
 mod cursor;
 mod keyboard;
 mod mouse;
 
-use button::*;
 use cursor::*;
 use keyboard::*;
 use mouse::*;
@@ -38,17 +36,23 @@ pub trait Source: Component {}
 
 pub trait State: Component {}
 
+#[derive(Component)]
+struct SourceMatcher<T: Source>(PhantomData<T>);
+
+#[derive(Component)]
+struct StateMatcher<T: State>(PhantomData<T>);
+
 #[derive(Component, Deref, DerefMut)]
 struct ShouldRun(bool);
 
-#[derive(Component)]
-struct MatcherSys(SystemId);
+#[derive(Component, Deref)]
+struct SysId(SystemId);
 
-#[derive(Component)]
-struct HandleSys(SystemId);
+#[derive(Relation)]
+struct Matcher;
 
 //  cmds.spawn((Text("ClickMe"), Button, Counter(0)))
-//      .handle::<(With<Lmb>, With<Press>)>(|me: EntityMut| { *me.get_mut::<Counter>().unwrap() += 1; })
+//      .handle::<Press, Lmb>(|me: EntityMut| { *me.get_mut::<Counter>().unwrap() += 1; })
 //      .handle::<Press, Rmb>(|me: EntityMut| { *me.get_mut::<Counter>().unwrap() = 0; });
 
 pub trait Handle {
@@ -67,59 +71,87 @@ impl Handle for EntityWorldMut<'_> {
     {
         let id = self.id();
         self.world_scope(move |world| {
-            // TODO: Use `In` + `Out` params
-            let handle_sys_id = world.register_system(sys);
-            let handle_ent = world.spawn((ShouldRun(false), HandleSys(handle_sys_id))).id();
-            let matcher_sys_id = world.register_system(move |
-                world: &mut World,
-                sources: &mut QueryState<Relations<Bindings>, With<Src>>,
-                states: &mut QueryState<(), With<Stt>>,
-            | {
-                let mut should_run = false;
-                for edges in sources.iter(world) {
-                    let [e] = edges.hosts(RelationId::of::<Bindings>()) else { continue };
-                    if states.get(world, *e).is_ok() {
-                        should_run = true;
-                        break;
-                    }
-                }
+            // TODO:
+            //  - Use `In` + `Out` params
+            let matcher_ent = {
+                let mut q = world.query_filtered::<
+                    Entity,
+                    (With<StateMatcher<Stt>>, With<SourceMatcher<Src>>, With<SysId>)
+                >();
 
-                **world.entity_mut(handle_ent).get_mut::<ShouldRun>().unwrap() = should_run;
-            });
+                if let Ok(matcher_ent) = q.get_single(world) {
+                    matcher_ent
+                } else {
+                    let matcher_ent = world
+                        .spawn((
+                            ShouldRun(false),
+                            StateMatcher::<Stt>(PhantomData),
+                            SourceMatcher::<Src>(PhantomData)
+                        ))
+                        .id();
+
+                    let matcher_sys_id = world.register_system(move |
+                        mut should_run: Query<&mut ShouldRun>,
+                        sources: Query<Relations<Bindings>, With<Src>>,
+                        states: Query<(), With<Stt>>,
+                    | {
+                        let Ok(mut should_run) = should_run.get_mut(matcher_ent) else { return };
+                        **should_run = sources
+                            .iter()
+                            .flat_map(|edges| edges
+                                .hosts(RelationId::of::<Bindings>())
+                                .first()
+                                .copied()
+                            )
+                            .any(|e| states.get(e).is_ok());
+                    });
+
+                    world.entity_mut(matcher_ent).insert(SysId(matcher_sys_id));
+
+                    matcher_ent
+                }
+            };
+
+            let handle_sys_id = world.register_system(sys);
 
             world
-                .entity_mut(handle_ent)
-                .insert(MatcherSys(matcher_sys_id))
-                .set::<HandleOf>(id);
+                .spawn(SysId(handle_sys_id))
+                .set::<HandleOf>(id)
+                .set::<Matcher>(matcher_ent);
         });
 
         self
     }
 }
 
+fn clean_dangling() {}
+
+fn eval_matchers() {}
+
 #[rustfmt::skip]
-fn capture_and_bubble(
-    mut cmds: Commands,
-    mut cursors: Query<(Entity, &mut Cursor)>,
+fn capture(
+    mut cursors: Query<(&mut CursorTarget, &mut CursorPos)>,
     tree: Query<((Entity, &Tile), Relations<Ui>)>,
     roots: Query<Entity, Root<Ui>>,
 ) {
-    for (cursor_entity, mut cursor) in cursors.iter_mut() {
-        cursor.relative = cursor.absolute;
-        let mut focus = Entity::PLACEHOLDER;
+    for (mut target, mut pos) in cursors.iter_mut() {
+        pos.relative = pos.absolute;
+        **target = Entity::PLACEHOLDER;
 
-        // TODO: Don't ignore z
+        // TODO:
+        //  - Don't ignore z
+        //  - Trigger hover
         if let Some(((entity, rect), _)) = roots
             .iter()
             .flat_map(|entity| tree.get(entity))
-            .find(|((_, rect), _)| rect.contains(cursor.relative))
+            .find(|((_, rect), _)| rect.contains(pos.relative))
         {
-            focus = entity;
-            cursor.relative -= rect.pos;
+            **target = entity;
+            pos.relative -= rect.pos;
         }
 
         loop {
-            let Ok(((_, _), edges)) = tree.get(focus) else {
+            let Ok(((_, _), edges)) = tree.get(**target) else {
                 break
             };
 
@@ -127,17 +159,30 @@ fn capture_and_bubble(
                 .hosts(RelationId::of::<Ui>())
                 .iter()
                 .flat_map(|e| tree.get(*e))
-                .find(|((_, rect), _)| rect.contains(cursor.relative))
+                .find(|((_, rect), _)| rect.contains(pos.relative))
             else {
                 break
             };
 
-            focus = entity;
-            cursor.relative -= rect.pos;
+            **target = entity;
+            pos.relative -= rect.pos;
         }
+    }
+}
 
-        if focus != Entity::PLACEHOLDER {
-            todo!()
-        }
+fn bubble(
+    world: &mut World,
+    targets: &mut QueryState<&CursorTarget>,
+    run_checks: &mut QueryState<&ShouldRun>,
+    handles: &mut QueryState<(&SysId, Relations<Matcher>), Leaf<Matcher>>,
+    tree: &mut QueryState<Relations<(Ui, Option<HandleOf>)>>,
+) {
+    for mut target in targets
+        .iter(world)
+        .map(|target| **target)
+        .collect::<Vec<_>>()
+        .into_iter()
+    {
+        todo!()
     }
 }
